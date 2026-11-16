@@ -1,0 +1,167 @@
+"use client"
+
+import { useState } from "react"
+import type { Book } from "@/lib/types"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { Pencil, Trash2, Search, ChevronUp, ChevronDown } from "lucide-react"
+
+interface BookTableProps {
+  books: Book[]
+  onEdit: (book: Book) => void
+  onDelete: (book: Book) => void
+}
+
+type SortField = "id" | "title" | "author" | "year" | "status"
+type SortDirection = "asc" | "desc"
+
+export function BookTable({ books, onEdit, onDelete }: BookTableProps) {
+  const [search, setSearch] = useState("")
+  const [statusFilter, setStatusFilter] = useState<"all" | "Available" | "Checked Out">("all")
+  const [sortField, setSortField] = useState<SortField>("id")
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
+
+  const filteredBooks = books
+    .filter((book) => {
+      const matchesSearch =
+        book.title.toLowerCase().includes(search.toLowerCase()) ||
+        book.author.toLowerCase().includes(search.toLowerCase()) ||
+        book.id.toString().includes(search)
+      const matchesStatus = statusFilter === "all" || book.status === statusFilter
+      return matchesSearch && matchesStatus
+    })
+    .sort((a, b) => {
+      let comparison = 0
+      if (sortField === "id") comparison = a.id - b.id
+      else if (sortField === "year") comparison = a.year - b.year
+      else if (sortField === "title") comparison = a.title.localeCompare(b.title)
+      else if (sortField === "author") comparison = a.author.localeCompare(b.author)
+      else if (sortField === "status") comparison = a.status.localeCompare(b.status)
+      return sortDirection === "asc" ? comparison : -comparison
+    })
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc")
+    } else {
+      setSortField(field)
+      setSortDirection("asc")
+    }
+  }
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return null
+    return sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search by title, author, or ID..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant={statusFilter === "all" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setStatusFilter("all")}
+          >
+            All
+          </Button>
+          <Button
+            variant={statusFilter === "Available" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setStatusFilter("Available")}
+          >
+            Available
+          </Button>
+          <Button
+            variant={statusFilter === "Checked Out" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setStatusFilter("Checked Out")}
+          >
+            Checked Out
+          </Button>
+        </div>
+      </div>
+
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="cursor-pointer" onClick={() => handleSort("id")}>
+                <div className="flex items-center gap-1">ID <SortIcon field="id" /></div>
+              </TableHead>
+              <TableHead className="cursor-pointer" onClick={() => handleSort("title")}>
+                <div className="flex items-center gap-1">Title <SortIcon field="title" /></div>
+              </TableHead>
+              <TableHead className="cursor-pointer" onClick={() => handleSort("author")}>
+                <div className="flex items-center gap-1">Author <SortIcon field="author" /></div>
+              </TableHead>
+              <TableHead className="cursor-pointer" onClick={() => handleSort("year")}>
+                <div className="flex items-center gap-1">Year <SortIcon field="year" /></div>
+              </TableHead>
+              <TableHead className="cursor-pointer" onClick={() => handleSort("status")}>
+                <div className="flex items-center gap-1">Status <SortIcon field="status" /></div>
+              </TableHead>
+              <TableHead>Borrowed Date</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredBooks.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                  No books found.
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredBooks.map((book) => (
+                <TableRow key={book.id}>
+                  <TableCell className="font-medium">{book.id}</TableCell>
+                  <TableCell className="font-medium">{book.title}</TableCell>
+                  <TableCell>{book.author}</TableCell>
+                  <TableCell>{book.year}</TableCell>
+                  <TableCell>
+                    <Badge variant={book.status === "Available" ? "default" : "secondary"} className={book.status === "Available" ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-amber-600 hover:bg-amber-700 text-white"}>
+                      {book.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    {book.borrowed_date || "-"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" size="icon" onClick={() => onEdit(book)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onDelete(book)}
+                        disabled={book.status === "Checked Out"}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      <p className="text-sm text-muted-foreground">
+        Showing {filteredBooks.length} of {books.length} books
+      </p>
+    </div>
+  )
+}
