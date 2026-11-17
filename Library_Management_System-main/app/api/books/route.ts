@@ -14,6 +14,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, message: "Title, author, and year are required." }, { status: 400 })
   }
   
+      // Block only if ANOTHER book has the same title AND the same author
+  if (title?.trim() && author?.trim()) {
+    const normalize = (value: string) =>
+      value.trim().replace(/\s+/g, " ").toLowerCase()
+
+    const books = await loadBooks()
+    const duplicate = books.find(
+      (book) =>
+        normalize(book.title) === normalize(title) &&
+        normalize(book.author) === normalize(author)
+    )
+
+    if (duplicate) {
+      return NextResponse.json(
+        { success: false, message: "This book already exists in your library!" },
+        { status: 409 }
+      )
+    }
+  }
+
   const result = await addBook(title, author, Number(year))
   return NextResponse.json(result, { status: result.success ? 201 : 400 })
 }
@@ -24,6 +44,27 @@ export async function PUT(request: Request) {
   
   if (!id) {
     return NextResponse.json({ success: false, message: "Book ID is required." }, { status: 400 })
+  }
+
+    // Block only if ANOTHER book has the same title AND the same author
+  if (title?.trim() && author?.trim()) {
+    const normalize = (value: string) =>
+      value.trim().replace(/\s+/g, " ").toLowerCase()
+
+    const books = await loadBooks()
+    const duplicate = books.find(
+      (book) =>
+        book.id !== Number(id) &&
+        normalize(book.title) === normalize(title) &&
+        normalize(book.author) === normalize(author)
+    )
+
+    if (duplicate) {
+      return NextResponse.json(
+        { success: false, message: "This book already exists in your library!" },
+        { status: 409 }
+      )
+    }
   }
   
   const result = await updateBook(Number(id), { title, author, year: year ? Number(year) : undefined })
@@ -41,3 +82,4 @@ export async function DELETE(request: Request) {
   const result = await deleteBook(Number(id))
   return NextResponse.json(result, { status: result.success ? 200 : 400 })
 }
+
